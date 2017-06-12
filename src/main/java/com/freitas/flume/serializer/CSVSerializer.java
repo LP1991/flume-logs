@@ -74,35 +74,71 @@ private final static Logger logger = LoggerFactory.getLogger(CSVSerializer.class
 	@Override
 	public void write(Event event) throws IOException {
 		Matcher matcher = regex.matcher(new String(event.getBody(), Charsets.UTF_8));
+		/*
+		String s = new String(event.getBody(), Charsets.UTF_8);
+		String[] ss = s.split(" ");
+		String time = "";
+		String level = "";
+		String className = "";
+		String eventDetail = "";
+		for (int i = 0; i < ss.length; i++){
+			switch (i) {
+				case 0:
+					time += ss[i]+" ";
+					break;
+				case 1:
+					time += ss[i].replaceAll(",.*","");
+					break;
+				case 2:
+					break;
+				case 3:
+					level += ss[i];
+					break;
+				case 4:
+					className += ss[i];
+					break;
+				default:
+					eventDetail += ss[i]+" ";
+			}
+		}
+		out.write((time+",").getBytes());
+		out.write((level+",").getBytes());
+		out.write((className+",").getBytes());
+		out.write((eventDetail+",").getBytes());
+		out.write('\n');
+*/
 		if (matcher.find()) {
 			// first write out the timestamp
-			String timestamp = event.getHeaders().get(TimestampInterceptor.Constants.TIMESTAMP);
-			if (timestamp == null || timestamp.isEmpty()){
-				long now = System.currentTimeMillis();
-				timestamp = Long.toString(now);
-			}
+//			String timestamp = event.getHeaders().get(TimestampInterceptor.Constants.TIMESTAMP);
+			long now = System.currentTimeMillis();
+			String timestamp = Long.toString(now);
+//			if (timestamp == null || timestamp.isEmpty()){
+//				long now = System.currentTimeMillis();
+//				timestamp = Long.toString(now);
+//			}
 			out.write(timestamp.getBytes());
-			out.write(',');
+			out.write('|');
 			// next save the regex group matches into a hash for reodering
 			int groupIndex = 0;
 			int totalGroups = matcher.groupCount();
 			for (int i = 0, count = totalGroups; i < count; i++) {
 				groupIndex = i + 1;
-				orderIndexer.put(Integer.valueOf(regexOrder[i]), ByteBuffer.wrap(matcher.group(groupIndex).getBytes()));
+				orderIndexer.put(Integer.valueOf(regexOrder[i]), ByteBuffer.wrap(matcher.group(groupIndex).replaceAll("\\n","&").getBytes()));
+				logger.warn(matcher.group(groupIndex) + "-------" + new String(matcher.group(groupIndex).getBytes(), Charsets.UTF_8)+"\n");
 			}
 			// write out the columns of the table
 			int i = 1;
 			for(Integer key : orderIndexer.keySet()){
 				out.write(orderIndexer.get(key).array());
 				if (i < totalGroups){
-					out.write(',');
+					out.write('|');
 				}
 				i++;
 			}
 			out.write('\n');
 		}
 		else {
-			logger.warn("Message skipped, no regex match: " + event.getBody().toString());
+			logger.warn("Message skipped, no regex match: " + new String(event.getBody(), Charsets.UTF_8));
 		}
 	}
 	
